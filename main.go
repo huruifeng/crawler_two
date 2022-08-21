@@ -301,7 +301,9 @@ func all(center string, two_digit_yr int, day int, code int, format string, repo
 	for i := 0; i <= last; i++ {
 		case_id := fmt.Sprintf("%s%d%03d%d%04d", center, two_digit_yr, day, code, i)
 
+		//case_final_store_mutex.Lock()
 		_, has := case_final_store_temp[case_id]
+		//case_final_store_mutex.Unlock()
 		if !has {
 			go crawlerAsync(center, two_digit_yr, day, code, i, format, c)
 		}
