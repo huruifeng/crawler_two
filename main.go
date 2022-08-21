@@ -151,6 +151,7 @@ var case_status_store_mutex sync.Mutex
 var case_status_store = make(map[string][]string)
 
 var case_final_store_mutex sync.Mutex
+var case_final_store_temp = make(map[string][]string)
 var case_final_store = make(map[string][]string)
 
 var sem = semaphore.NewWeighted(1000)
@@ -168,9 +169,9 @@ func writeF(path string, content []byte) {
 
 func get(form url.Values, retry int) result {
 	case_id := form.Get("appReceiptNum")
-	//if retry > 10 {
-	//	return result{case_id, "try_faild", "NA", "NA"}
-	//}
+	if retry > 100 {
+		return result{case_id, "try_faild", "NA", "NA"}
+	}
 
 	sem.Acquire(context.Background(), 1)
 	res, err1 := http.PostForm("https://egov.uscis.gov/casestatus/mycasestatus.do", form)
@@ -234,15 +235,15 @@ func crawler(center string, two_digit_yr int, day int, code int, case_serial_num
 	url_x := buildURL(center, two_digit_yr, day, code, case_serial_numbers, format)
 	res := get(url_x, 0)
 
-	if res.status != "invalid_num" {
-		//fmt.Printf("%s: %s %s %s\n", url_x.Get("appReceiptNum"), res.date, res.form, res.status)
-
-		if !FINAL_STATUS[res.status] {
-			case_status_store_mutex.Lock()
-			case_status_store[res.case_id] = []string{res.form, res.date, res.status}
-			case_status_store_mutex.Unlock()
-		}
-	}
+	//if res.status != "invalid_num" {
+	//	//fmt.Printf("%s: %s %s %s\n", url_x.Get("appReceiptNum"), res.date, res.form, res.status)
+	//
+	//	if !FINAL_STATUS[res.status] {
+	//		case_status_store_mutex.Lock()
+	//		case_status_store[res.case_id] = []string{res.form, res.date, res.status}
+	//		case_status_store_mutex.Unlock()
+	//	}
+	//}
 	return res
 }
 
@@ -300,9 +301,7 @@ func all(center string, two_digit_yr int, day int, code int, format string, repo
 	for i := 0; i <= last; i++ {
 		case_id := fmt.Sprintf("%s%d%03d%d%04d", center, two_digit_yr, day, code, i)
 
-		case_final_store_mutex.Lock()
-		_, has := case_final_store[case_id]
-		case_final_store_mutex.Unlock()
+		_, has := case_final_store_temp[case_id]
 		if !has {
 			go crawlerAsync(center, two_digit_yr, day, code, i, format, c)
 		}
@@ -318,9 +317,9 @@ func all(center string, two_digit_yr int, day int, code int, format string, repo
 		if FINAL_STATUS[cur.status] {
 			new_final_status_case[cur.case_id] = []string{cur.form, cur.date, cur.status}
 		} else {
-			//case_status_store_mutex.Lock()
-			//case_status_store[cur.case_id] = []string{cur.form, cur.date, cur.status}
-			//case_status_store_mutex.Unlock()
+			case_status_store_mutex.Lock()
+			case_status_store[cur.case_id] = []string{cur.form, cur.date, cur.status}
+			case_status_store_mutex.Unlock()
 		}
 	}
 	if last > 0 {
@@ -338,59 +337,69 @@ func all(center string, two_digit_yr int, day int, code int, format string, repo
 
 func main() {
 	fmt.Println(time.Now())
-	center := "LIN"
-	fiscal_year := 21
+	//center := "LIN"
+	//fiscal_year := 21
+	var FYs = []int{
+		20,
+		21,
+		22,
+	}
 	format := "lb"
 
-	year_days := 365
+	for _, fiscal_year := range FYs {
+		for _, center := range CENTER_NAMES {
+			year_days := 365
 
-	dir, _ := os.Getwd()
+			dir, _ := os.Getwd()
 
-	// Load the final records of the center and fiscal year, to avoid visiting them again
-	// final records are the cases with the statues defined in the FINAL_STATUS
-	case_final_store_file := fmt.Sprintf("%s/saved_data/%s_%d_%s_case_final.json", dir, center, fiscal_year, format)
-	jsonFile, err := os.ReadFile(case_final_store_file)
-	if err != nil {
-		fmt.Println("Read error! ", err.Error())
-	} else {
-		json.Unmarshal([]byte(jsonFile), &case_final_store)
+			// Load the final records of the center and fiscal year, to avoid visiting them again
+			// final records are the cases with the statues defined in the FINAL_STATUS
+			case_final_store_file := fmt.Sprintf("%s/saved_data/%s_%d_%s_case_final.json", dir, center, fiscal_year, format)
+			jsonFile, err := os.ReadFile(case_final_store_file)
+			if err != nil {
+				fmt.Println("Read error! ", err.Error())
+			} else {
+				json.Unmarshal([]byte(jsonFile), &case_final_store)
+				json.Unmarshal([]byte(jsonFile), &case_final_store_temp)
+			}
+
+			// Start the data retrieval
+			if format == "lb" {
+				report_c_lb := make(chan int)
+				for day := 0; day <= year_days; day++ {
+					go all(center, fiscal_year, day, 9, "lb", report_c_lb)
+				}
+				for i := 0; i <= year_days; i++ {
+					<-report_c_lb
+				}
+			} else if format == "sc" {
+				report_c_sc := make(chan int)
+				for day := 0; day <= year_days; day++ {
+					go all(center, fiscal_year, day, 5, "sc", report_c_sc)
+				}
+				for i := 0; i <= year_days; i++ {
+					<-report_c_sc
+				}
+			} else if format == "ioe" {
+
+			}
+
+			// Save case status
+			case_status_save_path := fmt.Sprintf("%s/saved_data/%s_%d_%s.json", dir, center, fiscal_year, format)
+			b_status, _ := json.MarshalIndent(case_status_store, "", "  ")
+			writeF(case_status_save_path, b_status)
+
+			// Save case with final status
+			b_final, _ := json.MarshalIndent(case_final_store, "", "  ")
+			writeF(case_final_store_file, b_final)
+
+			//total := 0
+			//for _, e := range day_case_count {
+			//	total += e
+			//
+			//}
+			//fmt.Println("Total:", total)
+		}
 	}
-
-	// Start the data retrieval
-	if format == "lb" {
-		report_c_lb := make(chan int)
-		for day := 0; day <= year_days; day++ {
-			go all(center, fiscal_year, day, 9, "lb", report_c_lb)
-		}
-		for i := 0; i <= year_days; i++ {
-			<-report_c_lb
-		}
-	} else if format == "sc" {
-		report_c_sc := make(chan int)
-		for day := 0; day <= year_days; day++ {
-			go all(center, fiscal_year, day, 5, "sc", report_c_sc)
-		}
-		for i := 0; i <= year_days; i++ {
-			<-report_c_sc
-		}
-	} else if format == "ioe" {
-
-	}
-
-	// Save case status
-	case_status_save_path := fmt.Sprintf("%s/saved_data/%s_%d_%s.json", dir, center, fiscal_year, format)
-	b_status, _ := json.MarshalIndent(case_status_store, "", "  ")
-	writeF(case_status_save_path, b_status)
-
-	// Save case with final status
-	b_final, _ := json.MarshalIndent(case_final_store, "", "  ")
-	writeF(case_final_store_file, b_final)
-
-	//total := 0
-	//for _, e := range day_case_count {
-	//	total += e
-	//
-	//}
-	//fmt.Println("Total:", total)
 	fmt.Println(time.Now())
 }
