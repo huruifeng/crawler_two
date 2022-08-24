@@ -156,6 +156,8 @@ var case_final_store = make(map[string][]string)
 
 var sem = semaphore.NewWeighted(1000)
 
+var done_n = 0
+
 func Split(r rune) bool {
 	return r == ',' || r == ' '
 }
@@ -295,15 +297,17 @@ func all(center string, two_digit_yr int, day int, code int, format string, repo
 	defer func() { report_c <- 0 }()
 
 	last := getLastCaseNumber(center, two_digit_yr, day, code, format)
-	fmt.Printf("loading %s total of %d at day %d of format %s\n", center, last, day, format)
+	fmt.Printf("loading %s-%d-%s at day %3d: %d\n", center, two_digit_yr, format, day, last)
 
 	c := make(chan result)
+	case_id := ""
 	for i := 0; i <= last; i++ {
-		case_id := fmt.Sprintf("%s%d%03d%d%04d", center, two_digit_yr, day, code, i)
-
-		//case_final_store_mutex.Lock()
+		if format == "sc" {
+			case_id = fmt.Sprintf("%s%d%03d%d%04d", center, two_digit_yr, day, code, i)
+		} else {
+			case_id = fmt.Sprintf("%s%d%d%03d%04d", center, two_digit_yr, code, day, i)
+		}
 		_, has := case_final_store_temp[case_id]
-		//case_final_store_mutex.Unlock()
 		if !has {
 			go crawlerAsync(center, two_digit_yr, day, code, i, format, c)
 		}
@@ -311,30 +315,38 @@ func all(center string, two_digit_yr int, day int, code int, format string, repo
 
 	new_final_status_case := make(map[string][]string)
 	for i := 0; i <= last; i++ {
-		cur := <-c
-		if cur.status == "invalid_num" {
-			continue
-		}
-		//fmt.Sprintf("%s:%s|%s|%s", cur.case_id, cur.form, cur.date, cur.status)
-		if FINAL_STATUS[cur.status] {
-			new_final_status_case[cur.case_id] = []string{cur.form, cur.date, cur.status}
+		if format == "sc" {
+			case_id = fmt.Sprintf("%s%d%03d%d%04d", center, two_digit_yr, day, code, i)
 		} else {
-			case_status_store_mutex.Lock()
-			case_status_store[cur.case_id] = []string{cur.form, cur.date, cur.status}
-			case_status_store_mutex.Unlock()
+			case_id = fmt.Sprintf("%s%d%d%03d%04d", center, two_digit_yr, code, day, i)
+		}
+		_, has := case_final_store_temp[case_id]
+		if !has {
+			cur := <-c
+			if cur.status == "invalid_num" {
+				continue
+			}
+			//fmt.Sprintf("%s:%s|%s|%s", cur.case_id, cur.form, cur.date, cur.status)
+			if FINAL_STATUS[cur.status] {
+				new_final_status_case[cur.case_id] = []string{cur.form, cur.date, cur.status}
+			} else {
+				case_status_store_mutex.Lock()
+				case_status_store[cur.case_id] = []string{cur.form, cur.date, cur.status}
+				case_status_store_mutex.Unlock()
+			}
 		}
 	}
-	if last > 0 {
-		case_final_store_mutex.Lock()
-		merge_final_case(case_final_store, new_final_status_case)
-		case_final_store_mutex.Unlock()
-	}
+
+	case_final_store_mutex.Lock()
+	done_n += 1
+	merge_final_case(case_final_store, new_final_status_case)
+	case_final_store_mutex.Unlock()
 
 	//day_case_count_mutex.Lock()
 	//day_case_count[day] = last
 	//day_case_count_mutex.Unlock()
 
-	fmt.Printf("Done %s total of %d at day %d of format %s\n", center, last, day, format)
+	fmt.Printf("Done %s-%d-%s at day %3d: %d =>> %d / 365\n", center, two_digit_yr, format, day, last, done_n)
 }
 
 func main() {
@@ -346,11 +358,12 @@ func main() {
 		21,
 		22,
 	}
-	format := "lb"
+	format := "sc"
 
 	for _, fiscal_year := range FYs {
 		for _, center := range CENTER_NAMES {
 			year_days := 365
+			done_n = 0
 
 			dir, _ := os.Getwd()
 
