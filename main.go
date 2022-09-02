@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -379,71 +380,67 @@ func all(center string, two_digit_yr int, day int, code int, format string, repo
 }
 
 func main() {
+	args := os.Args
+
 	fmt.Println(time.Now())
-	//center := "LIN"
-	//fiscal_year := 21
-	var FYs = []int{
-		20,
-		21,
-		22,
+	center := args[1]
+	fiscal_year, _ := strconv.Atoi(args[2])
+	format := args[3]
+
+	fmt.Printf("Run %s-%d-%s\n", center, fiscal_year, format)
+
+	year_days := 365
+	done_n = 0
+
+	dir, _ := os.Getwd()
+
+	// Load the final records of the center and fiscal year, to avoid visiting them again
+	// final records are the cases with the statues defined in the FINAL_STATUS
+	case_final_store_file := fmt.Sprintf("%s/saved_data/%s_%d_%s_case_final.json", dir, center, fiscal_year, format)
+	jsonFile, err := os.ReadFile(case_final_store_file)
+	if err != nil {
+		fmt.Println("Read error! ", err.Error())
+	} else {
+		json.Unmarshal([]byte(jsonFile), &case_final_store)
+		json.Unmarshal([]byte(jsonFile), &case_final_store_temp)
 	}
-	format := "sc"
 
-	for _, fiscal_year := range FYs {
-		for _, center := range CENTER_NAMES {
-			year_days := 365
-			done_n = 0
-
-			dir, _ := os.Getwd()
-
-			// Load the final records of the center and fiscal year, to avoid visiting them again
-			// final records are the cases with the statues defined in the FINAL_STATUS
-			case_final_store_file := fmt.Sprintf("%s/saved_data/%s_%d_%s_case_final.json", dir, center, fiscal_year, format)
-			jsonFile, err := os.ReadFile(case_final_store_file)
-			if err != nil {
-				fmt.Println("Read error! ", err.Error())
-			} else {
-				json.Unmarshal([]byte(jsonFile), &case_final_store)
-				json.Unmarshal([]byte(jsonFile), &case_final_store_temp)
-			}
-
-			// Start the data retrieval
-			if format == "lb" {
-				report_c_lb := make(chan int)
-				for day := 0; day <= year_days; day++ {
-					go all(center, fiscal_year, day, 9, "lb", report_c_lb)
-				}
-				for i := 0; i <= year_days; i++ {
-					<-report_c_lb
-				}
-			} else if format == "sc" {
-				report_c_sc := make(chan int)
-				for day := 0; day <= year_days; day++ {
-					go all(center, fiscal_year, day, 5, "sc", report_c_sc)
-				}
-				for i := 0; i <= year_days; i++ {
-					<-report_c_sc
-				}
-			} else if format == "ioe" {
-
-			}
-
-			// Save case status
-			case_status_save_path := fmt.Sprintf("%s/saved_data/%s_%d_%s.json", dir, center, fiscal_year, format)
-			b_status, _ := json.MarshalIndent(case_status_store, "", "  ")
-			writeF(case_status_save_path, b_status)
-
-			// Save case with final status
-			b_final, _ := json.MarshalIndent(case_final_store, "", "  ")
-			writeF(case_final_store_file, b_final)
-
-			//total := 0
-			//for _, e := range day_case_count {
-			//	total += e
-			//
-			//}
-			//fmt.Println("Total:", total)
+	// Start the data retrieval
+	if format == "lb" {
+		report_c_lb := make(chan int)
+		for day := 0; day <= year_days; day++ {
+			go all(center, fiscal_year, day, 9, "lb", report_c_lb)
 		}
+		for i := 0; i <= year_days; i++ {
+			<-report_c_lb
+		}
+	} else if format == "sc" {
+		report_c_sc := make(chan int)
+		for day := 0; day <= year_days; day++ {
+			go all(center, fiscal_year, day, 5, "sc", report_c_sc)
+		}
+		for i := 0; i <= year_days; i++ {
+			<-report_c_sc
+		}
+	} else if format == "ioe" {
+
 	}
+
+	// Save case status
+	case_status_save_path := fmt.Sprintf("%s/saved_data/%s_%d_%s.json", dir, center, fiscal_year, format)
+	b_status, _ := json.MarshalIndent(case_status_store, "", "  ")
+	writeF(case_status_save_path, b_status)
+
+	// Save case with final status
+	b_final, _ := json.MarshalIndent(case_final_store, "", "  ")
+	writeF(case_final_store_file, b_final)
+
+	//total := 0
+	//for _, e := range day_case_count {
+	//	total += e
+	//
+	//}
+	//fmt.Println("Total:", total)
+
 	fmt.Println(time.Now())
 }
