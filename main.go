@@ -241,6 +241,14 @@ func get(form url.Values, retry int) result {
 			break
 		}
 	}
+	if form_x == "" {
+		for _, form_i_x := range FORM_TYPES {
+			if strings.Contains(doc.Text(), form_i_x) {
+				form_x = form_i_x
+				break
+			}
+		}
+	}
 
 	if status_h != "" {
 		return result{case_id, status_h, form_x, date_x}
