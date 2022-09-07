@@ -202,7 +202,7 @@ func writeF(path string, content []byte) {
 func get(form url.Values, retry int) result {
 	case_id := form.Get("appReceiptNum")
 	if retry > 100 {
-		return result{case_id, "try_faild", "NA", "NA"}
+		return result{case_id, "try_faild", "", ""}
 	}
 
 	sem.Acquire(context.Background(), 1)
