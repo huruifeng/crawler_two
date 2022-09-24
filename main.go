@@ -201,9 +201,9 @@ func writeF(path string, content []byte) {
 
 func get(form url.Values, retry int) result {
 	case_id := form.Get("appReceiptNum")
-	if retry > 100 {
-		return result{case_id, "try_faild", "", ""}
-	}
+	//if retry > 100 {
+	//	return result{case_id, "try_faild", "", ""}
+	//}
 
 	sem.Acquire(context.Background(), 1)
 	res, err1 := http.PostForm("https://egov.uscis.gov/casestatus/mycasestatus.do", form)
@@ -253,12 +253,12 @@ func get(form url.Values, retry int) result {
 	if status_h != "" {
 		return result{case_id, status_h, form_x, date_x}
 	} else {
-		return result{case_id, "invalid_num", "NA", "NA"}
+		return result{case_id, "invalid_num", "", ""}
 	}
 }
 
 func buildURL(center string, two_digit_yr int, day int, code int, case_serial_numbers int, format string) url.Values {
-	if format == "sc" {
+	if format == "SC" {
 		res := url.Values{"appReceiptNum": {fmt.Sprintf("%s%d%03d%d%04d", center, two_digit_yr, day, code, case_serial_numbers)}}
 		return res
 	} else {
@@ -335,12 +335,12 @@ func all(center string, two_digit_yr int, day int, code int, format string, repo
 	defer func() { report_c <- 0 }()
 
 	last := getLastCaseNumber(center, two_digit_yr, day, code, format)
-	fmt.Printf("loading %s-%d-%s at day %3d: %d\n", center, two_digit_yr, format, day, last)
+	fmt.Printf("loading %s-%s-%d at day %3d: %d\n", center, format, two_digit_yr, day, last)
 
 	c := make(chan result)
 	case_id := ""
 	for i := 0; i <= last; i++ {
-		if format == "sc" {
+		if format == "SC" {
 			case_id = fmt.Sprintf("%s%d%03d%d%04d", center, two_digit_yr, day, code, i)
 		} else {
 			case_id = fmt.Sprintf("%s%d%d%03d%04d", center, two_digit_yr, code, day, i)
@@ -353,7 +353,7 @@ func all(center string, two_digit_yr int, day int, code int, format string, repo
 
 	new_final_status_case := make(map[string][]string)
 	for i := 0; i <= last; i++ {
-		if format == "sc" {
+		if format == "SC" {
 			case_id = fmt.Sprintf("%s%d%03d%d%04d", center, two_digit_yr, day, code, i)
 		} else {
 			case_id = fmt.Sprintf("%s%d%d%03d%04d", center, two_digit_yr, code, day, i)
@@ -384,7 +384,7 @@ func all(center string, two_digit_yr int, day int, code int, format string, repo
 	//day_case_count[day] = last
 	//day_case_count_mutex.Unlock()
 
-	fmt.Printf("Done %s-%d-%s at day %3d: %d =>> %d / 365\n", center, two_digit_yr, format, day, last, done_n)
+	fmt.Printf("Done %s-%s-%d at day %3d: %d =>> %d / 365\n", center, format, two_digit_yr, day, last, done_n)
 }
 
 func main() {
@@ -395,7 +395,7 @@ func main() {
 	fiscal_year, _ := strconv.Atoi(args[2])
 	format := args[3]
 
-	fmt.Printf("Run %s-%d-%s\n", center, fiscal_year, format)
+	fmt.Printf("Run %s-%s-%d\n", center, format, fiscal_year)
 
 	year_days := 365
 	done_n = 0
@@ -404,7 +404,7 @@ func main() {
 
 	// Load the final records of the center and fiscal year, to avoid visiting them again
 	// final records are the cases with the statues defined in the FINAL_STATUS
-	case_final_store_file := fmt.Sprintf("%s/saved_data/%s_%d_%s_case_final.json", dir, center, fiscal_year, format)
+	case_final_store_file := fmt.Sprintf("%s/saved_data/%s_%s_%d_case_final.json", dir, center, format, fiscal_year)
 	jsonFile, err := os.ReadFile(case_final_store_file)
 	if err != nil {
 		fmt.Println("Read error! ", err.Error())
@@ -414,18 +414,18 @@ func main() {
 	}
 
 	// Start the data retrieval
-	if format == "lb" {
+	if format == "LB" {
 		report_c_lb := make(chan int)
 		for day := 0; day <= year_days; day++ {
-			go all(center, fiscal_year, day, 9, "lb", report_c_lb)
+			go all(center, fiscal_year, day, 9, "LB", report_c_lb)
 		}
 		for i := 0; i <= year_days; i++ {
 			<-report_c_lb
 		}
-	} else if format == "sc" {
+	} else if format == "SC" {
 		report_c_sc := make(chan int)
 		for day := 0; day <= year_days; day++ {
-			go all(center, fiscal_year, day, 5, "sc", report_c_sc)
+			go all(center, fiscal_year, day, 5, "SC", report_c_sc)
 		}
 		for i := 0; i <= year_days; i++ {
 			<-report_c_sc
@@ -435,7 +435,7 @@ func main() {
 	}
 
 	// Save case status
-	case_status_save_path := fmt.Sprintf("%s/saved_data/%s_%d_%s.json", dir, center, fiscal_year, format)
+	case_status_save_path := fmt.Sprintf("%s/saved_data/%s_%s_%d.json", dir, center, format, fiscal_year)
 	b_status, _ := json.MarshalIndent(case_status_store, "", "  ")
 	writeF(case_status_save_path, b_status)
 
