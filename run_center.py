@@ -1,5 +1,5 @@
 import os
-import subprocess
+from subprocess import Popen, CREATE_NEW_CONSOLE
 
 import schedule
 import time
@@ -21,15 +21,18 @@ def run_task():
             for y in year_ls:
                 print(c,y,ls)
                 # Call your exe
-                cmd_str = "start /wait F:/Go_projects/scraper_two/main.exe "+c+" "+str(y)[-2:]+" "+ls
-                os.system(cmd_str)
+                # cmd_str = "start /wait F:/Go_projects/scraper_two/main.exe "+c+" "+str(y)[-2:]+" "+ls
+                # os.system(cmd_str)
 
-    # if you want to print output
-    # p = subprocess.check_output('C:\pathtotool.exe -2 c:\data ')
+                cmd_str = "start /wait F:/Go_projects/scraper_two/main.exe "+c+" "+str(y)[-2:]+" "+ls
+                subp = Popen(cmd_str, creationflags=CREATE_NEW_CONSOLE, shell=True, encoding="utf-8")
+                subp.wait()
+
+
     print("Do task...Done!")
 
 
-# # Run job every day at specific HH:MM and next HH:MM:SS
+## Run job every day at specific HH:MM and next HH:MM:SS
 # schedule.every().day.at("22:00:00").do(run_task)
 #
 # while True:
