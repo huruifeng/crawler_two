@@ -13,7 +13,7 @@ def run_task():
     if now.month > 9:
         year_ls = [str(now.year + 1)] + year_ls
 
-    for ls in ["SC"]:
+    for ls in ["LB","SC"]:
         for c in ["LIN","MSC","SRC","WAC","EAC","YSC"]:
             for y in year_ls:
                 print(c,y,ls,try_n)
@@ -21,8 +21,7 @@ def run_task():
                 # cmd_str = "start /wait F:/Go_projects/scraper_two/main.exe "+c+" "+str(y)[-2:]+" "+ls
                 # os.system(cmd_str)
 
-                # cmd_str = "start /wait F:/Go_projects/scraper_two/main.exe "+c+" "+str(y)[-2:]+" "+ls+" "+str(try_n)
-                cmd_str = "start /wait F:/Go_projects/scraper_two/main.exe "+c+" "+str(y)[-2:]+" "+ls
+                cmd_str = "start /wait F:/Go_projects/scraper_two/main.exe "+c+" "+str(y)[-2:]+" "+ls+" "+str(try_n)
                 subp = Popen(cmd_str, creationflags=CREATE_NEW_CONSOLE, shell=True, encoding="utf-8")
                 subp.wait()
 
