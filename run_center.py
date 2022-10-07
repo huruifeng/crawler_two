@@ -6,7 +6,7 @@ def run_task():
 
     now = datetime.now()
     year_n =3
-    try_n = 1000
+    try_n = 0  ## 0: try until get the status.
     year_ls = []
     for i in range(year_n):
         year_ls.append(str(now.year - i))

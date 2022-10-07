@@ -442,6 +442,7 @@ func main() {
 	}
 
 	// Save case status
+	fmt.Println("Saving data...")
 	case_status_save_path := fmt.Sprintf("%s/saved_data/%s_%s_%d.json", dir, center, format, fiscal_year)
 	b_status, _ := json.MarshalIndent(case_status_store, "", "  ")
 	writeF(case_status_save_path, b_status)
@@ -449,7 +450,7 @@ func main() {
 	// Save case with final status
 	b_final, _ := json.MarshalIndent(case_final_store, "", "  ")
 	writeF(case_final_store_file, b_final)
-
+	fmt.Println("Saving data...Done!")
 	//total := 0
 	//for _, e := range day_case_count {
 	//	total += e
