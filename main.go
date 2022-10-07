@@ -187,6 +187,7 @@ var case_final_store = make(map[string][]string)
 var sem = semaphore.NewWeighted(1000)
 
 var done_n = 0
+var try_n = 1000
 
 func Split(r rune) bool {
 	return r == ',' || r == ' '
@@ -199,11 +200,13 @@ func writeF(path string, content []byte) {
 	}
 }
 
-func get(form url.Values, retry int) result {
+func get(form url.Values, retry int, try_times int) result {
 	case_id := form.Get("appReceiptNum")
-	//if retry > 100 {
-	//	return result{case_id, "try_faild", "", ""}
-	//}
+	if try_times > 0 {
+		if retry > try_times {
+			return result{case_id, "try_faild", "", ""}
+		}
+	}
 
 	sem.Acquire(context.Background(), 1)
 	res, err1 := http.PostForm("https://egov.uscis.gov/casestatus/mycasestatus.do", form)
@@ -217,14 +220,14 @@ func get(form url.Values, retry int) result {
 	if err1 != nil {
 		//fmt.Println("error 1! " + err1.Error())
 		//fmt.Printf("Retry %d %s\n", retry+1, form)
-		return get(form, retry+1)
+		return get(form, retry+1, try_times)
 	}
 
 	doc, err2 := goquery.NewDocumentFromReader(res.Body)
 	if err2 != nil {
 		//fmt.Println("error 2! " + err2.Error())
 		//fmt.Printf("Retry %d %s\n", retry+1, form)
-		return get(form, retry+1)
+		return get(form, retry+1, try_times)
 	}
 
 	body := doc.Find(".rows").First()
@@ -268,12 +271,12 @@ func buildURL(center string, two_digit_yr int, day int, code int, case_serial_nu
 }
 
 func crawlerAsync(center string, two_digit_yr int, day int, code int, case_serial_numbers int, format string, c chan result) {
-	c <- crawler(center, two_digit_yr, day, code, case_serial_numbers, format)
+	c <- crawler(center, two_digit_yr, day, code, case_serial_numbers, format, try_n)
 }
 
-func crawler(center string, two_digit_yr int, day int, code int, case_serial_numbers int, format string) result {
+func crawler(center string, two_digit_yr int, day int, code int, case_serial_numbers int, format string, try_times int) result {
 	url_x := buildURL(center, two_digit_yr, day, code, case_serial_numbers, format)
-	res := get(url_x, 0)
+	res := get(url_x, 0, try_times)
 
 	//if res.status != "invalid_num" {
 	//	//fmt.Printf("%s: %s %s %s\n", url_x.Get("appReceiptNum"), res.date, res.form, res.status)
@@ -291,10 +294,11 @@ func getLastCaseNumber(center string, two_digit_yr int, day int, code int, forma
 	low := 1
 	high := 1
 	invalid_limit := 10
+
 	i := 0
 	for high < 10000 {
 		for i = 0; i < invalid_limit; i++ {
-			if crawler(center, two_digit_yr, day, code, high+i-1, format).status != "invalid_num" {
+			if crawler(center, two_digit_yr, day, code, high+i-1, format, 0).status != "invalid_num" {
 				high *= 2
 				break
 			}
@@ -307,7 +311,7 @@ func getLastCaseNumber(center string, two_digit_yr int, day int, code int, forma
 	for low < high {
 		mid := (low + high) / 2
 		for i = 0; i < invalid_limit; i++ {
-			if crawler(center, two_digit_yr, day, code, mid+i, format).status != "invalid_num" {
+			if crawler(center, two_digit_yr, day, code, mid+i, format, 0).status != "invalid_num" {
 				low = mid + 1
 				break
 			}
@@ -317,6 +321,7 @@ func getLastCaseNumber(center string, two_digit_yr int, day int, code int, forma
 			high = mid
 		}
 	}
+
 	return low - 1
 }
 
@@ -394,6 +399,8 @@ func main() {
 	center := args[1]
 	fiscal_year, _ := strconv.Atoi(args[2])
 	format := args[3]
+
+	try_n, _ = strconv.Atoi(args[4])
 
 	fmt.Printf("Run %s-%s-%d\n", center, format, fiscal_year)
 

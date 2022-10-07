@@ -1,29 +1,27 @@
-import os
 from subprocess import Popen, CREATE_NEW_CONSOLE
-
-import schedule
-import time
-from datetime import datetime,timedelta
+from datetime import datetime
 
 def run_task():
     print("Do task...")
 
     now = datetime.now()
     year_n =3
+    try_n = 1000
     year_ls = []
     for i in range(year_n):
         year_ls.append(str(now.year - i))
     if now.month > 9:
         year_ls = [str(now.year + 1)] + year_ls
 
-    for ls in ["LB","SC"]:
+    for ls in ["SC"]:
         for c in ["LIN","MSC","SRC","WAC","EAC","YSC"]:
             for y in year_ls:
-                print(c,y,ls)
+                print(c,y,ls,try_n)
                 # Call your exe
                 # cmd_str = "start /wait F:/Go_projects/scraper_two/main.exe "+c+" "+str(y)[-2:]+" "+ls
                 # os.system(cmd_str)
 
+                # cmd_str = "start /wait F:/Go_projects/scraper_two/main.exe "+c+" "+str(y)[-2:]+" "+ls+" "+str(try_n)
                 cmd_str = "start /wait F:/Go_projects/scraper_two/main.exe "+c+" "+str(y)[-2:]+" "+ls
                 subp = Popen(cmd_str, creationflags=CREATE_NEW_CONSOLE, shell=True, encoding="utf-8")
                 subp.wait()
@@ -41,3 +39,6 @@ def run_task():
 #     time.sleep(1800)
 
 run_task()
+print(datetime.now())
+
+
