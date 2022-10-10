@@ -24,8 +24,6 @@ def run_task():
                 cmd_str = "start /wait F:/Go_projects/scraper_two/main.exe "+c+" "+str(y)[-2:]+" "+ls+" "+str(try_n)
                 subp = Popen(cmd_str, creationflags=CREATE_NEW_CONSOLE, shell=True, encoding="utf-8")
                 subp.wait()
-
-
     print("Do task...Done!")
 
 
