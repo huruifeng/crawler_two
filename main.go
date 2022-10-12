@@ -204,6 +204,7 @@ func get(form url.Values, retry int, try_times int) result {
 	case_id := form.Get("appReceiptNum")
 	if try_times > 0 {
 		if retry > try_times {
+			fmt.Printf("%s:%s-%d", case_id, "try faild", try_times)
 			return result{case_id, "try_faild", "", ""}
 		}
 	}
@@ -339,8 +340,9 @@ func merge_final_case(cur_cases, new_cases map[string][]string) {
 func all(center string, two_digit_yr int, day int, code int, format string, report_c chan int) {
 	defer func() { report_c <- 0 }()
 
+	fmt.Printf("loading %s-%s-%d at day %3d: \n", center, format, two_digit_yr, day)
 	last := getLastCaseNumber(center, two_digit_yr, day, code, format)
-	fmt.Printf("loading %s-%s-%d at day %3d: %d\n", center, format, two_digit_yr, day, last)
+	fmt.Printf("%d\n", last)
 
 	c := make(chan result)
 	case_id := ""
