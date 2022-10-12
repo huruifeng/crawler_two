@@ -340,9 +340,8 @@ func merge_final_case(cur_cases, new_cases map[string][]string) {
 func all(center string, two_digit_yr int, day int, code int, format string, report_c chan int) {
 	defer func() { report_c <- 0 }()
 
-	fmt.Printf("loading %s-%s-%d at day %3d: \n", center, format, two_digit_yr, day)
 	last := getLastCaseNumber(center, two_digit_yr, day, code, format)
-	fmt.Printf("%d\n", last)
+	fmt.Printf("loading %s-%s-%d at day %3d: %d\n", center, format, two_digit_yr, day, last)
 
 	c := make(chan result)
 	case_id := ""
