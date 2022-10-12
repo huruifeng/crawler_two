@@ -184,10 +184,10 @@ var case_final_store_mutex sync.Mutex
 var case_final_store_temp = make(map[string][]string)
 var case_final_store = make(map[string][]string)
 
-var sem = semaphore.NewWeighted(1000)
+var sem = semaphore.NewWeighted(500)
 
 var done_n = 0
-var try_n = 1000
+var try_n = 0
 
 func Split(r rune) bool {
 	return r == ',' || r == ' '
@@ -389,7 +389,7 @@ func all(center string, two_digit_yr int, day int, code int, format string, repo
 	//day_case_count[day] = last
 	//day_case_count_mutex.Unlock()
 
-	fmt.Printf("Done %s-%s-%d at day %3d: %d =>> %d / 365\n", center, format, two_digit_yr, day, last, done_n)
+	fmt.Printf("Done %s-%s-%d at day %3d: %d =>> %d / 366\n", center, format, two_digit_yr, day, last, done_n)
 }
 
 func main() {
@@ -402,7 +402,7 @@ func main() {
 
 	try_n, _ = strconv.Atoi(args[4])
 
-	fmt.Printf("Run %s-%s-%d\n", center, format, fiscal_year)
+	fmt.Printf("Run %s-%s-%d, Try = %d\n", center, format, fiscal_year, try_n)
 
 	year_days := 365
 	done_n = 0
