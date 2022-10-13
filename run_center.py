@@ -1,4 +1,5 @@
 import os
+from signal import CTRL_C_EVENT
 from subprocess import run, Popen, CREATE_NEW_CONSOLE, TimeoutExpired
 
 import schedule
@@ -11,7 +12,7 @@ def run_task():
     year_n =3
     try_n = 1000
 
-    timeout_s = 60 * 20
+    timeout_s = 60*20
     failed_ls = []
     
     now = datetime.now()
@@ -27,28 +28,30 @@ def run_task():
                 print(c,y,ls)
 
                 cmd_str = "start /wait F:/Go_projects/scraper_two/main.exe "+c+" "+str(y)[-2:]+" "+ls+" "+str(try_n)
-                subp = Popen(cmd_str, creationflags=CREATE_NEW_CONSOLE, shell=True, encoding="utf-8")
+                subp = Popen(cmd_str, shell=True, encoding="utf-8")
                 try:
                     outs, errs = subp.communicate(timeout=timeout_s)
                 except TimeoutExpired:
+                    #this will kill the invoked terminal
+                    Popen('taskkill /F /T /PID %i' % subp.pid,shell=True)
+
                     print(f'Timeout for "{cmd_str}" ({timeout_s}s) expired')
                     failed_ls.append([c,y,ls])
-                    subp.kill()
-                    outs, errs = subp.communicate()
+                    print(failed_ls)
 
     ## if failed, try until succeed
     while len(failed_ls) > 0:
         print("Re-try:",failed_ls)
         f_i = failed_ls[0]
-        cmd_str = "start /wait C:/Users/hurui/OneDrive/temp/scraper_two/main.exe "+f_i[0]+" "+str(f_i[1])[-2:]+" "+f_i[2]+" "+str(try_n)
-        subp = Popen(cmd_str, creationflags=CREATE_NEW_CONSOLE, shell=True, encoding="utf-8")
+        cmd_str = "start /wait F:/Go_projects/scraper_two/main.exe "+f_i[0]+" "+str(f_i[1])[-2:]+" "+f_i[2]+" "+str(try_n)
+        subp = Popen(cmd_str, shell=True, encoding="utf-8")
         try:
             outs, errs = subp.communicate(timeout=timeout_s)
             failed_ls.remove(f_i)
         except TimeoutExpired:
             print(f'Timeout for "{cmd_str}" ({timeout_s}s) expired')
-            subp.kill()
-            outs, errs = subp.communicate()
+            #this will kill the invoked terminal
+            Popen('taskkill /F /T /PID %i' % subp.pid,shell=True)
 
     print("Do task...Done!")
 

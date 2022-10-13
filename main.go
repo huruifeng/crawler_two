@@ -361,7 +361,6 @@ func all(center string, two_digit_yr int, day int, code int, format string, repo
 
 	new_final_status_case := make(map[string][]string)
 	for i := 0; i < true_last; i++ {
-
 		cur := <-c
 		if cur.status == "invalid_num" {
 			continue
@@ -374,7 +373,6 @@ func all(center string, two_digit_yr int, day int, code int, format string, repo
 			case_status_store[cur.case_id] = []string{cur.form, cur.date, cur.status}
 			case_status_store_mutex.Unlock()
 		}
-
 	}
 
 	case_final_store_mutex.Lock()
