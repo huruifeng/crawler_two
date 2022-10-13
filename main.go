@@ -184,7 +184,7 @@ var case_final_store_mutex sync.Mutex
 var case_final_store_temp = make(map[string][]string)
 var case_final_store = make(map[string][]string)
 
-var sem = semaphore.NewWeighted(500)
+var sem = semaphore.NewWeighted(1000)
 
 var done_n = 0
 var try_n = 0
@@ -345,6 +345,7 @@ func all(center string, two_digit_yr int, day int, code int, format string, repo
 
 	c := make(chan result)
 	case_id := ""
+	true_last := 0
 	for i := 0; i <= last; i++ {
 		if format == "SC" {
 			case_id = fmt.Sprintf("%s%d%03d%d%04d", center, two_digit_yr, day, code, i)
@@ -353,32 +354,27 @@ func all(center string, two_digit_yr int, day int, code int, format string, repo
 		}
 		_, has := case_final_store_temp[case_id]
 		if !has {
+			true_last += 1
 			go crawlerAsync(center, two_digit_yr, day, code, i, format, c)
 		}
 	}
 
 	new_final_status_case := make(map[string][]string)
-	for i := 0; i <= last; i++ {
-		if format == "SC" {
-			case_id = fmt.Sprintf("%s%d%03d%d%04d", center, two_digit_yr, day, code, i)
+	for i := 0; i < true_last; i++ {
+
+		cur := <-c
+		if cur.status == "invalid_num" {
+			continue
+		}
+		//fmt.Sprintf("%s:%s|%s|%s", cur.case_id, cur.form, cur.date, cur.status)
+		if FINAL_STATUS[cur.status] {
+			new_final_status_case[cur.case_id] = []string{cur.form, cur.date, cur.status}
 		} else {
-			case_id = fmt.Sprintf("%s%d%d%03d%04d", center, two_digit_yr, code, day, i)
+			case_status_store_mutex.Lock()
+			case_status_store[cur.case_id] = []string{cur.form, cur.date, cur.status}
+			case_status_store_mutex.Unlock()
 		}
-		_, has := case_final_store_temp[case_id]
-		if !has {
-			cur := <-c
-			if cur.status == "invalid_num" {
-				continue
-			}
-			//fmt.Sprintf("%s:%s|%s|%s", cur.case_id, cur.form, cur.date, cur.status)
-			if FINAL_STATUS[cur.status] {
-				new_final_status_case[cur.case_id] = []string{cur.form, cur.date, cur.status}
-			} else {
-				case_status_store_mutex.Lock()
-				case_status_store[cur.case_id] = []string{cur.form, cur.date, cur.status}
-				case_status_store_mutex.Unlock()
-			}
-		}
+
 	}
 
 	case_final_store_mutex.Lock()
